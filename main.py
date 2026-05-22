@@ -10,7 +10,7 @@ PORT = int(os.environ.get("PORT", "5000"))
 # CONFIG
 # =========================
 
-VERSION = "1.17.1"
+VERSION = "1.17.2"
 
 logs = []
 
