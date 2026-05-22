@@ -6,58 +6,122 @@ from datetime import datetime
 app = Flask(__name__)
 
 PORT = int(os.environ.get("PORT", "5000"))
+BASE_URL = "https://srv-mtei.onrender.com"
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-BASE_URL = "https://srv-mtei.onrender.com"
+# =========================================================
+# LOGS EM MEMÓRIA
+# =========================================================
 
-# =========================================================
-# LOG COMPLETO
-# =========================================================
+logs_memory = []
+
+def add_log(text):
+    print(text)
+
+    logs_memory.append(text)
+
+    # limita memória
+    if len(logs_memory) > 500:
+        logs_memory.pop(0)
 
 def scan_request(name):
-    print("\n")
-    print("=" * 70)
-    print("UNITY REQUEST SCAN")
-    print("=" * 70)
+    add_log("")
+    add_log("=" * 70)
+    add_log(f"{name} REQUEST")
+    add_log("=" * 70)
 
-    print(f"TIME: {datetime.now().strftime('%H:%M:%S')}")
-    print(f"METHOD: {request.method}")
-    print(f"RAW PATH: {request.full_path}")
-    print(f"CLEAN PATH: {request.path}")
+    add_log(f"TIME: {datetime.now().strftime('%H:%M:%S')}")
+    add_log(f"METHOD: {request.method}")
+    add_log(f"RAW PATH: {request.full_path}")
+    add_log(f"CLEAN PATH: {request.path}")
 
-    print("\nHEADERS:")
+    add_log("")
+    add_log("HEADERS:")
+
     for k, v in request.headers.items():
-        print(f"{k}: {v}")
+        add_log(f"{k}: {v}")
 
-    print("\nQUERY:")
+    add_log("")
+    add_log("QUERY:")
+
     for k, v in request.args.items():
-        print(f"{k}={v}")
+        add_log(f"{k}={v}")
 
     body = request.get_data()
 
     if body:
-        try:
-            print("\nBODY:")
-            print(body.decode())
-        except:
-            print("\nBODY: <binary>")
+        add_log("")
+        add_log("BODY:")
 
-    print("=" * 70)
-    print("\n")
+        try:
+            add_log(body.decode())
+        except:
+            add_log("<binary body>")
+
+    add_log("=" * 70)
+    add_log("")
 
 
 # =========================================================
-# HOME
+# HOME COM VISUALIZADOR
 # =========================================================
 
 @app.route("/")
 def home():
-    scan_request("HOME")
-    return "UNITY SCANNER ONLINE", 200
+
+    html_logs = "<br>".join(logs_memory[-300:])
+
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Unity Live Scanner</title>
+
+        <meta http-equiv="refresh" content="2">
+
+        <style>
+
+            body {{
+                background: #0d1117;
+                color: #00ff88;
+                font-family: monospace;
+                padding: 20px;
+            }}
+
+            h1 {{
+                color: white;
+            }}
+
+            .box {{
+                background: #161b22;
+                border: 1px solid #30363d;
+                padding: 15px;
+                border-radius: 10px;
+                white-space: pre-wrap;
+                overflow-wrap: break-word;
+            }}
+
+        </style>
+    </head>
+
+    <body>
+
+        <h1>UNITY LIVE REQUEST SCANNER</h1>
+
+        <p>Status: ONLINE</p>
+        <p>Port: {PORT}</p>
+
+        <div class="box">
+{html_logs}
+        </div>
+
+    </body>
+    </html>
+    """
 
 
 # =========================================================
@@ -66,7 +130,8 @@ def home():
 
 @app.route("/live/ver.php", methods=["GET", "POST"])
 def ver_php():
-    scan_request("VER")
+
+    scan_request("VER.PHP")
 
     response_text = (
         "1.17.1\r\n"
@@ -75,8 +140,8 @@ def ver_php():
         f"{BASE_URL}/live/\r\n"
     )
 
-    print("VER RESPONSE:")
-    print(repr(response_text))
+    add_log("VER RESPONSE:")
+    add_log(repr(response_text))
 
     return Response(
         response_text,
@@ -99,7 +164,7 @@ VERSIONINFO_CONTENT = "1.17.1"
 
 
 # =========================================================
-# TODAS ROTAS FILEINFO
+# FILEINFO ROTAS
 # =========================================================
 
 @app.route("/Fileinfo")
@@ -108,9 +173,10 @@ VERSIONINFO_CONTENT = "1.17.1"
 @app.route("/fileinfo.txt")
 @app.route("/live/Fileinfo")
 @app.route("/live/fileinfo")
-@app.route("/live/fileinfo.txt")
 @app.route("/live/Fileinfo.txt")
+@app.route("/live/fileinfo.txt")
 def fileinfo():
+
     scan_request("FILEINFO")
 
     return Response(
@@ -120,7 +186,7 @@ def fileinfo():
 
 
 # =========================================================
-# TODAS ROTAS VERSIONINFO
+# VERSIONINFO ROTAS
 # =========================================================
 
 @app.route("/Versioninfo")
@@ -129,9 +195,10 @@ def fileinfo():
 @app.route("/versioninfo.txt")
 @app.route("/live/Versioninfo")
 @app.route("/live/versioninfo")
-@app.route("/live/versioninfo.txt")
 @app.route("/live/Versioninfo.txt")
+@app.route("/live/versioninfo.txt")
 def versioninfo():
+
     scan_request("VERSIONINFO")
 
     return Response(
@@ -141,18 +208,19 @@ def versioninfo():
 
 
 # =========================================================
-# CONNECT LOGIN
+# APP INFO LOGIN
 # =========================================================
 
 @app.route("/app/info/get")
 def app_info():
+
     scan_request("APP INFO")
 
     return jsonify({
         "success": True,
+        "status": "ok",
         "app_id": "100067",
-        "client_version": "2018120316",
-        "status": "ok"
+        "client_version": "2018120316"
     })
 
 
@@ -162,6 +230,7 @@ def app_info():
 
 @app.route("/live/<path:path>", methods=["GET", "POST"])
 def live_files(path):
+
     scan_request("LIVE FILE")
 
     full = os.path.join("assets", path)
@@ -178,12 +247,13 @@ def live_files(path):
 
 @app.route("/<path:path>", methods=["GET", "POST", "PUT", "DELETE"])
 def catch_all(path):
+
     scan_request("CATCH ALL")
 
     return jsonify({
+        "status": "captured",
         "path": path,
-        "method": request.method,
-        "status": "captured"
+        "method": request.method
     })
 
 
@@ -195,10 +265,10 @@ if __name__ == "__main__":
 
     os.makedirs("assets", exist_ok=True)
 
-    print("=" * 70)
-    print("UNITY ADVANCED SCANNER STARTED")
-    print(f"PORT: {PORT}")
-    print("=" * 70)
+    add_log("=" * 70)
+    add_log("UNITY ADVANCED LIVE SCANNER STARTED")
+    add_log(f"PORT: {PORT}")
+    add_log("=" * 70)
 
     app.run(
         host="0.0.0.0",
