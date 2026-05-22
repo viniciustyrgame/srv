@@ -1,231 +1,152 @@
-from flask import Flask, request, send_from_directory, Response
-from datetime import datetime
+from flask import Flask, request, Response
+import time
 import os
 
 app = Flask(__name__)
 
-# =========================================
+# =========================
 # CONFIG
-# =========================================
+# =========================
 
-BASE_DIR = "assets/android"
+VERSION = "1.17.1"
 
-SERVER_HOST = "https://srv-mtei.onrender.com"
-SERVER_VERSION = "1.17.1"
+BASE_URL = "https://srv-mtei.onrender.com"
+
+ASSET_PATH = "assets/android"
+
+# =========================
+# LOG SYSTEM
+# =========================
 
 logs = []
 
-
-# =========================================
-# LOG SYSTEM
-# =========================================
-
-def add_log(text):
-    now = datetime.now().strftime("%H:%M:%S")
-    line = f"[{now}] {text}"
+def log(msg):
+    ts = time.strftime("%H:%M:%S")
+    line = f"[{ts}] {msg}"
     print(line)
+    logs.append(line)
 
-    logs.insert(0, line)
+    if len(logs) > 400:
+        logs.pop(0)
 
-    if len(logs) > 500:
-        logs.pop()
+# =========================
+# SAFE QUERY PARSER
+# =========================
 
+def fix_args(args):
+    clean = {}
+    for k, v in args.items():
+        k = k.replace("-", "")
+        clean[k] = v
+    return clean
 
-# =========================================
-# HOME PAGE
-# =========================================
+# =========================
+# LOAD FILES (GITHUB STYLE)
+# =========================
 
-@app.after_request
-def fix_headers(response):
-    response.headers["Cache-Control"] = "no-cache"
-    response.headers["Accept-Ranges"] = "bytes"
-    return response
-    
+def load_file(path):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except:
+        return ""
+
+# =========================
+# ROUTES
+# =========================
+
 @app.route("/")
 def home():
-    html_logs = "<br>".join(logs)
+    return "<pre>" + "\n".join(logs[-200:]) + "</pre>"
 
-    return f"""
-    <html>
-    <head>
-        <title>UNITY LIVE LOGS</title>
+# =========================
+# VERSION CHECK (UNITY)
+# =========================
 
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+@app.route("/live/ver.php")
+def ver():
+    args = fix_args(request.args)
 
-        <style>
-            body {{
-                background: #0d1117;
-                color: #00ff88;
-                font-family: monospace;
-                padding: 15px;
-            }}
+    version = args.get("version", "")
+    lang = args.get("lang", "")
+    device = args.get("device", "")
+    appstore = args.get("appstore", "")
 
-            h1 {{
-                color: white;
-            }}
+    log("VER.PHP REQUEST")
+    log(f"version={version} lang={lang} device={device} appstore={appstore}")
 
-            .box {{
-                background: #161b22;
-                border-radius: 10px;
-                padding: 15px;
-                margin-bottom: 20px;
-            }}
+    # headers (debug)
+    for k, v in request.headers.items():
+        log(f"{k}: {v}")
 
-            .log {{
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                font-size: 14px;
-            }}
-        </style>
-    </head>
+    # IMPORTANTE: resposta correta do updater
+    response = f"""{VERSION}
+{BASE_URL}/Versioninfo.txt
+{BASE_URL}/Fileinfo.txt
+{BASE_URL}/live/"""
 
-    <body>
+    log("VER RESPONSE SENT OK")
 
-        <div class="box">
-            <h1>UNITY LIVE LOGS</h1>
-
-            <b>SERVER ONLINE</b><br><br>
-
-            <b>HOST:</b><br>
-            {SERVER_HOST}<br><br>
-
-            <b>VERSION:</b><br>
-            {SERVER_VERSION}
-        </div>
-
-        <div class="box log">
-            {html_logs}
-        </div>
-
-    </body>
-    </html>
-    """
+    return Response(response, mimetype="text/plain")
 
 
-# =========================================
-# FAVICON
-# =========================================
-
-@app.route("/favicon.ico")
-def favicon():
-    add_log("FAVICON REQUEST")
-    return Response(status=204)
-
-
-# =========================================
-# VERSIONINFO
-# =========================================
-
-@app.route("/Versioninfo.txt")
-def versioninfo():
-    add_log("Versioninfo.txt REQUEST")
-    return send_from_directory(BASE_DIR, "Versioninfo.txt")
-
-
-# =========================================
+# =========================
 # FILEINFO
-# =========================================
+# =========================
 
 @app.route("/Fileinfo.txt")
 def fileinfo():
-    add_log("Fileinfo.txt REQUEST")
-    return send_from_directory(BASE_DIR, "Fileinfo.txt")
+    log("Fileinfo.txt REQUEST")
+
+    data = load_file(f"{ASSET_PATH}/Fileinfo.txt")
+
+    return Response(data, mimetype="text/plain")
 
 
-# =========================================
-# VER.PHP
-# =========================================
+# =========================
+# VERSIONINFO
+# =========================
 
-@app.route("/live/ver.php")
-def ver_php():
+@app.route("/Versioninfo.txt")
+def versioninfo():
+    log("Versioninfo.txt REQUEST")
 
-    version = request.args.get("version", "unknown")
-    lang = request.args.get("lang", "unknown")
-    device = request.args.get("device", "unknown")
-    appstore = request.args.get("appstore", "unknown")
+    data = load_file(f"{ASSET_PATH}/Versioninfo.txt")
 
-    add_log("")
-    add_log("VER.PHP REQUEST")
-    add_log("")
-    add_log(f"TIME: {datetime.now().strftime('%H:%M:%S')}")
-    add_log(f"METHOD: {request.method}")
-    add_log("")
-    add_log(f"RAW PATH: {request.full_path}")
-    add_log("")
-    add_log("HEADERS:")
-
-    for key, value in request.headers.items():
-        add_log(f"{key}: {value}")
-
-    add_log("")
-    add_log("QUERY:")
-    add_log("")
-    add_log(f"version: {version}")
-    add_log(f"lang: {lang}")
-    add_log(f"device: {device}")
-    add_log(f"appstore: {appstore}")
-    add_log("")
-
-    response_text = (
-        f"{SERVER_VERSION}\r\n"
-        f"{SERVER_HOST}/Versioninfo.txt\r\n"
-        f"{SERVER_HOST}/Fileinfo.txt\r\n"
-        f"{SERVER_HOST}/live/\r\n"
-    )
-
-    add_log("VER RESPONSE:")
-    add_log("")
-    add_log(response_text)
-
-    return Response(response_text, mimetype="text/plain")
+    return Response(data, mimetype="text/plain")
 
 
-# =========================================
-# LIVE FILES
-# =========================================
+# =========================
+# LIVE CDN FILES
+# =========================
 
-@app.route("/live/<path:filename>")
-def live_files(filename):
-    path = os.path.join("assets/android/live", filename)
+@app.route("/live/<path:path>")
+def live(path):
+    log(f"LIVE REQUEST: {path}")
 
-    if not os.path.exists(path):
-        return "NOT FOUND", 404
+    file_path = os.path.join(ASSET_PATH, "live", path)
 
-    return send_from_directory(
-        "assets/android/live",
-        filename,
-        as_attachment=False,
-        conditional=True
-    )
+    if os.path.isfile(file_path):
+        with open(file_path, "rb") as f:
+            return Response(f.read())
 
-    add_log("STATUS: NOT FOUND")
-    return "FILE NOT FOUND", 404
+    return Response("NOT FOUND", status=404)
 
 
-# =========================================
-# UNKNOWN ROUTES
-# =========================================
+# =========================
+# FAVICON (STOP SPAM LOG)
+# =========================
 
-@app.errorhandler(404)
-def not_found(e):
-
-    add_log("")
-    add_log("UNKNOWN REQUEST")
-    add_log(f"PATH: {request.path}")
-    add_log(f"METHOD: {request.method}")
-
-    return "404", 404
+@app.route("/favicon.ico")
+def favicon():
+    log("FAVICON REQUEST (ignored)")
+    return ("", 204)
 
 
-# =========================================
+# =========================
 # START
-# =========================================
+# =========================
 
 if __name__ == "__main__":
-
-    add_log("SERVER STARTED")
-
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 5000))
-    )
+    log("SERVER STARTED")
+    app.run(host="0.0.0.0", port=5000)
