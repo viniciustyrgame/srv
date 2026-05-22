@@ -4,9 +4,18 @@ import traceback
 import json
 import re
 import time
-import sys
 
 PORT = int(os.environ.get("PORT", 10000))
+
+VERSION = "1.17.1"
+
+FILEINFO_DATA = """gameassetbundles,mzZtylZ1fawV5N8D8XikRyF+5mY=,12060,0
+main/gameentry,DZlCrLRuzwyuNzUZrh+p0QxJCcI=,2018,0
+localization/loc,gWXz0dDNM8MJyFcAFhzbqWWqvrY=,632921,0
+ingame/avatarmanager,Tjb+QEzOiGwy+DBpxlLrVBZRphA=,1915,0
+config/resconf,ysnx0NubzKPaLVGszrP45y9WQH0=,34896,0
+avatar/assetindexer,IbV74Hqrb07rdlrKYQx6JZIhZ5M=,74343,0
+avatar/uma_dcs,BSJQtQt6qEeFdLv8gsrVtPDQubo=,14523,0"""
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -19,10 +28,10 @@ class Handler(BaseHTTPRequestHandler):
     def log(self, *args):
         print(*args, flush=True)
 
-    # RESPONSE
-    def send_ok(self, text="OK"):
+    # RESPONSE TEXT
+    def send_text(self, text, status=200):
 
-        self.send_response(200)
+        self.send_response(status)
 
         self.send_header(
             "Content-Type",
@@ -38,6 +47,22 @@ class Handler(BaseHTTPRequestHandler):
 
         self.wfile.write(
             text.encode("utf-8")
+        )
+
+    # RESPONSE JSON
+    def send_json(self, data, status=200):
+
+        self.send_response(status)
+
+        self.send_header(
+            "Content-Type",
+            "application/json"
+        )
+
+        self.end_headers()
+
+        self.wfile.write(
+            json.dumps(data).encode("utf-8")
         )
 
     # LOGGER
@@ -64,6 +89,8 @@ class Handler(BaseHTTPRequestHandler):
             "/",
             raw_path
         ).lstrip("/")
+
+        lower_path = clean_path.lower()
 
         self.log("CLEAN PATH:", clean_path)
 
@@ -95,20 +122,128 @@ class Handler(BaseHTTPRequestHandler):
         self.log("=" * 60)
         self.log("\n")
 
+        return clean_path, lower_path
+
     # GET
     def do_GET(self):
 
         try:
 
-            self.print_request()
+            clean_path, lower_path = self.print_request()
 
-            self.send_ok("OK")
+            # =====================================================
+            # VER.PHP
+            # =====================================================
+            if "ver.php" in lower_path:
+
+                host = self.headers.get(
+                    "Host",
+                    "srv-mtei.onrender.com"
+                )
+
+                base = f"https://{host}"
+
+                response = (
+                    f"{VERSION}\n"
+                    f"{base}/Versioninfo.txt\n"
+                    f"{base}/fileinfo.txt\n"
+                    f"{base}/live/"
+                )
+
+                self.log("VER RESPONSE:")
+                self.log(response)
+
+                self.send_text(response)
+
+                return
+
+            # =====================================================
+            # VERSIONINFO
+            # =====================================================
+            if "versioninfo" in lower_path:
+
+                self.log("VERSIONINFO REQUEST")
+
+                self.send_text(VERSION)
+
+                return
+
+            # =====================================================
+            # FILEINFO
+            # =====================================================
+            if "fileinfo" in lower_path:
+
+                self.log("FILEINFO REQUEST")
+
+                self.send_text(FILEINFO_DATA)
+
+                return
+
+            # =====================================================
+            # LIVE ASSETS
+            # =====================================================
+            if "/live/" in lower_path:
+
+                asset_path = clean_path.replace(
+                    "/live/",
+                    ""
+                )
+
+                self.log("LIVE ASSET REQUEST:")
+                self.log(asset_path)
+
+                # REDIRECT CDN
+                if asset_path and not asset_path.endswith(".php"):
+
+                    cdn_url = (
+                        "https://freefiremobile-a.akamaihd.net/live/"
+                        + asset_path
+                    )
+
+                    self.log("REDIRECT CDN:")
+                    self.log(cdn_url)
+
+                    self.send_response(302)
+
+                    self.send_header(
+                        "Location",
+                        cdn_url
+                    )
+
+                    self.end_headers()
+
+                    return
+
+            # =====================================================
+            # ROOT
+            # =====================================================
+            if clean_path == "/":
+
+                self.send_json({
+                    "server": "online",
+                    "version": VERSION
+                })
+
+                return
+
+            # =====================================================
+            # UNKNOWN
+            # =====================================================
+            self.log("UNKNOWN REQUEST")
+
+            self.send_text("OK")
 
         except Exception as e:
+
+            self.log("\n")
+            self.log("=" * 60)
+            self.log("ERROR")
+            self.log("=" * 60)
 
             self.log(traceback.format_exc())
 
             self.send_response(500)
+
             self.end_headers()
 
     # POST
@@ -131,30 +266,20 @@ class Handler(BaseHTTPRequestHandler):
                     content_length
                 )
 
-            self.print_request(body)
+            clean_path, lower_path = self.print_request(body)
 
-            response = {
-                "status": "ok"
-            }
-
-            self.send_response(200)
-
-            self.send_header(
-                "Content-Type",
-                "application/json"
-            )
-
-            self.end_headers()
-
-            self.wfile.write(
-                json.dumps(response).encode()
-            )
+            # RESPONSE DEFAULT
+            self.send_json({
+                "status": "ok",
+                "path": clean_path
+            })
 
         except Exception as e:
 
             self.log(traceback.format_exc())
 
             self.send_response(500)
+
             self.end_headers()
 
     # HEAD
@@ -176,7 +301,7 @@ server = ThreadingHTTPServer(
 )
 
 print("=" * 60, flush=True)
-print(f"SCANNER SERVER RUNNING PORT {PORT}", flush=True)
+print(f"UNITY SCANNER SERVER RUNNING PORT {PORT}", flush=True)
 print("=" * 60, flush=True)
 
 server.serve_forever()
