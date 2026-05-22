@@ -1,152 +1,90 @@
-from flask import Flask, request, Response
-import time
+from flask import Flask, request, send_from_directory, Response
 import os
 
 app = Flask(__name__)
 
-# =========================
-# CONFIG
-# =========================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSETS_DIR = os.path.join(BASE_DIR, "assets", "android")
 
-VERSION = "1.17.1"
-
-BASE_URL = "https://srv-mtei.onrender.com"
-
-ASSET_PATH = "assets/android"
-
-# =========================
-# LOG SYSTEM
-# =========================
-
-logs = []
-
+# ---------------------------
+# LOGS
+# ---------------------------
 def log(msg):
-    ts = time.strftime("%H:%M:%S")
-    line = f"[{ts}] {msg}"
-    print(line)
-    logs.append(line)
+    print(msg)
 
-    if len(logs) > 400:
-        logs.pop(0)
-
-# =========================
-# SAFE QUERY PARSER
-# =========================
-
-def fix_args(args):
-    clean = {}
-    for k, v in args.items():
-        k = k.replace("-", "")
-        clean[k] = v
-    return clean
-
-# =========================
-# LOAD FILES (GITHUB STYLE)
-# =========================
-
-def load_file(path):
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read()
-    except:
-        return ""
-
-# =========================
-# ROUTES
-# =========================
-
-@app.route("/")
-def home():
-    return "<pre>" + "\n".join(logs[-200:]) + "</pre>"
-
-# =========================
-# VERSION CHECK (UNITY)
-# =========================
-
+# ---------------------------
+# VERSION CHECK
+# ---------------------------
 @app.route("/live/ver.php")
-def ver():
-    args = fix_args(request.args)
+def version():
+    version = request.args.get("version", "")
+    lang = request.args.get("lang", "")
+    device = request.args.get("device", "")
+    appstore = request.args.get("appstore", "")
 
-    version = args.get("version", "")
-    lang = args.get("lang", "")
-    device = args.get("device", "")
-    appstore = args.get("appstore", "")
+    log(f"VER REQUEST -> {version} {lang} {device} {appstore}")
 
-    log("VER.PHP REQUEST")
-    log(f"version={version} lang={lang} device={device} appstore={appstore}")
+    version_file = os.path.join(ASSETS_DIR, "Versioninfo.txt")
 
-    # headers (debug)
-    for k, v in request.headers.items():
-        log(f"{k}: {v}")
+    if os.path.exists(version_file):
+        with open(version_file, "r") as f:
+            version_value = f.read().strip()
+    else:
+        version_value = "1.17.1"
 
-    # IMPORTANTE: resposta correta do updater
-    response = f"""{VERSION}
-{BASE_URL}/Versioninfo.txt
-{BASE_URL}/Fileinfo.txt
-{BASE_URL}/live/"""
+    response = f"{version_value}"
 
-    log("VER RESPONSE SENT OK")
-
+    log(f"VER RESPONSE SENT OK -> {response}")
     return Response(response, mimetype="text/plain")
 
 
-# =========================
+# ---------------------------
 # FILEINFO
-# =========================
-
+# ---------------------------
 @app.route("/Fileinfo.txt")
 def fileinfo():
-    log("Fileinfo.txt REQUEST")
-
-    data = load_file(f"{ASSET_PATH}/Fileinfo.txt")
-
-    return Response(data, mimetype="text/plain")
+    path = os.path.join(ASSETS_DIR, "Fileinfo.txt")
+    return send_from_directory(os.path.dirname(path), os.path.basename(path), mimetype="text/plain")
 
 
-# =========================
+# ---------------------------
 # VERSIONINFO
-# =========================
-
+# ---------------------------
 @app.route("/Versioninfo.txt")
 def versioninfo():
-    log("Versioninfo.txt REQUEST")
-
-    data = load_file(f"{ASSET_PATH}/Versioninfo.txt")
-
-    return Response(data, mimetype="text/plain")
+    path = os.path.join(ASSETS_DIR, "Versioninfo.txt")
+    return send_from_directory(os.path.dirname(path), os.path.basename(path), mimetype="text/plain")
 
 
-# =========================
-# LIVE CDN FILES
-# =========================
+# ---------------------------
+# LIVE FILES (IMPORTANT PART)
+# ---------------------------
+@app.route("/live/<path:file_path>")
+def live_files(file_path):
 
-@app.route("/live/<path:path>")
-def live(path):
-    log(f"LIVE REQUEST: {path}")
+    full_path = os.path.join(ASSETS_DIR, "live", file_path)
 
-    file_path = os.path.join(ASSET_PATH, "live", path)
+    log(f"LIVE REQUEST -> {file_path}")
 
-    if os.path.isfile(file_path):
-        with open(file_path, "rb") as f:
-            return Response(f.read())
+    if not os.path.exists(full_path):
+        log("FILE NOT FOUND")
+        return "NOT FOUND", 404
 
-    return Response("NOT FOUND", status=404)
-
-
-# =========================
-# FAVICON (STOP SPAM LOG)
-# =========================
-
-@app.route("/favicon.ico")
-def favicon():
-    log("FAVICON REQUEST (ignored)")
-    return ("", 204)
+    # Unity files must NOT be modified
+    return send_from_directory(
+        os.path.dirname(full_path),
+        os.path.basename(full_path),
+        conditional=True
+    )
 
 
-# =========================
-# START
-# =========================
+# ---------------------------
+# ROOT DEBUG
+# ---------------------------
+@app.route("/")
+def home():
+    return "SERVER ONLINE"
+
 
 if __name__ == "__main__":
-    log("SERVER STARTED")
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=10000)
