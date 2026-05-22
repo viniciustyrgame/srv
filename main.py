@@ -59,7 +59,7 @@ def ver_php():
     else:
         # Resposta padrão: texto puro da versão
         logging.info(f"Respondendo /live/ver.php com texto puro: {current_version}")
-        return Response(current_version, mimetype=\'text/plain\')
+        return Response(current_version, mimetype='text/plain')
 
 @app.route("/live/android/<path:filename>", methods=["GET", "POST"])
 def serve_android_assets(filename):
@@ -102,13 +102,13 @@ if __name__ == "__main__":
     # Garante que o diretório de assets existe e cria os arquivos
     os.makedirs("assets/android", exist_ok=True)
     
-    fileinfo_content = \'\'\'gameassetbundles,mzZtylZ1fawV5N8D8XikRyF+5mY=,12060,0\nmain/gameentry,DZlCrLRuzwyuNzUZrh+p0QxJCcI=,2018,0\nlocalization/loc,gWXz0dDNM8MJyFcAFhzbqWWqvrY=,632921,0\ningame/avatarmanager,Tjb+QEzOiGwy+DBpxlLrVBZRphA=,1915,0\nconfig/resconf,ysnx0NubzKPaLVGszrP45y9WQH0=,34896,0\navatar/assetindexer,IbV74Hqrb07rdlrKYQx6JZIhZ5M=,74343,0\navatar/uma_dcs,BSJQtQt6qEeFdLv8gsrVtPDQubo=,14523,0\'\'\'
+    fileinfo_content = '''gameassetbundles,mzZtylZ1fawV5N8D8XikRyF+5mY=,12060,0\nmain/gameentry,DZlCrLRuzwyuNzUZrh+p0QxJCcI=,2018,0\nlocalization/loc,gWXz0dDNM8MJyFcAFhzbqWWqvrY=,632921,0\ningame/avatarmanager,Tjb+QEzOiGwy+DBpxlLrVBZRphA=,1915,0\nconfig/resconf,ysnx0NubzKPaLVGszrP45y9WQH0=,34896,0\navatar/assetindexer,IbV74Hqrb07rdlrKYQx6JZIhZ5M=,74343,0\navatar/uma_dcs,BSJQtQt6qEeFdLv8gsrVtPDQubo=,14523,0'''
 
-    with open(\'assets/android/fileinfo\', \'w\') as f:
+    with open('assets/android/fileinfo', 'w') as f:
         f.write(fileinfo_content)
 
-    with open(\'assets/android/versioninfo\', \'w\') as f:
-        f.write(\'1.17.1\')
+    with open('assets/android/versioninfo', 'w') as f:
+        f.write('1.17.1')
 
     print(f"Servidor de Auto-Scan rodando na porta {PORT}")
     app.run(host="0.0.0.0", port=PORT)
