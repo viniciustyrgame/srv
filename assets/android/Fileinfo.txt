@@ -1,0 +1,7 @@
+gameassetbundles,mzZtylZ1fawV5N8D8XikRyF+5mY=,12060,0
+main/gameentry,DZlCrLRuzwyuNzUZrh+p0QxJCcI=,2018,0
+localization/loc,gWXz0dDNM8MJyFcAFhzbqWWqvrY=,632921,0
+ingame/avatarmanager,Tjb+QEzOiGwy+DBpxlLrVBZRphA=,1915,0
+config/resconf,ysnx0NubzKPaLVGszrP45y9WQH0=,34896,0
+avatar/assetindexer,IbV74Hqrb07rdlrKYQx6JZIhZ5M=,74343,0
+avatar/uma_dcs,BSJQtQt6qEeFdLv8gsrVtPDQubo=,14523,0
