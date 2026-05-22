@@ -11,7 +11,7 @@ app = Flask(__name__)
 BASE_DIR = "assets/android"
 
 SERVER_HOST = "https://srv-mtei.onrender.com"
-SERVER_VERSION = "9999999999"
+SERVER_VERSION = "1.17.1"
 
 logs = []
 
