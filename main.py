@@ -4,6 +4,7 @@ import traceback
 import json
 import re
 import time
+import socket
 
 PORT = int(os.environ.get("PORT", "10000"))
 
@@ -24,7 +25,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         return
 
-    # PRINT REALTIME
+    # LOG REALTIME
     def log(self, *args):
         print(*args, flush=True)
 
@@ -50,6 +51,11 @@ class Handler(BaseHTTPRequestHandler):
             "*"
         )
 
+        self.send_header(
+            "Connection",
+            "close"
+        )
+
         self.end_headers()
 
         self.wfile.write(encoded)
@@ -71,21 +77,26 @@ class Handler(BaseHTTPRequestHandler):
             str(len(encoded))
         )
 
+        self.send_header(
+            "Connection",
+            "close"
+        )
+
         self.end_headers()
 
         self.wfile.write(encoded)
 
-    # LOGGER
-    def print_request(self, body=None):
+    # REQUEST SCANNER
+    def scan_request(self, body=None):
 
         self.log("\n")
-        self.log("=" * 60)
-        self.log("NEW REQUEST")
-        self.log("=" * 60)
+        self.log("=" * 70)
+        self.log("UNITY REQUEST SCAN")
+        self.log("=" * 70)
 
         self.log("TIME:", time.strftime("%H:%M:%S"))
 
-        self.log("IP:", self.client_address[0])
+        self.log("CLIENT:", self.client_address)
 
         self.log("METHOD:", self.command)
 
@@ -94,7 +105,7 @@ class Handler(BaseHTTPRequestHandler):
         # REMOVE QUERY
         raw_path = self.path.split("?")[0]
 
-        # REMOVE //////
+        # REMOVE ///////
         clean_path = "/" + re.sub(
             r"/+",
             "/",
@@ -110,7 +121,7 @@ class Handler(BaseHTTPRequestHandler):
 
             query = self.path.split("?", 1)[1]
 
-            self.log("\nQUERY:")
+            self.log("\nQUERY PARAMS:")
             self.log(query)
 
         # HEADERS
@@ -120,17 +131,47 @@ class Handler(BaseHTTPRequestHandler):
 
             self.log(f"{key}: {value}")
 
+        # USER AGENT DETAILS
+        ua = self.headers.get("User-Agent", "")
+
+        if ua:
+
+            self.log("\nUSER AGENT:")
+            self.log(ua)
+
+        # UNITY VERSION
+        unity = self.headers.get("X-Unity-Version")
+
+        if unity:
+
+            self.log("\nUNITY VERSION:")
+            self.log(unity)
+
         # BODY
         if body:
 
-            self.log("\nBODY:")
+            self.log("\nBODY RAW:")
 
             try:
                 self.log(body.decode("utf-8"))
             except:
                 self.log(body)
 
-        self.log("=" * 60)
+            self.log("\nBODY HEX:")
+            self.log(body.hex())
+
+        # EXTRA ANALYSIS
+        self.log("\nPATH ANALYSIS:")
+
+        parts = clean_path.split("/")
+
+        for i, part in enumerate(parts):
+
+            if part:
+
+                self.log(f"PART {i}: {part}")
+
+        self.log("=" * 70)
         self.log("\n")
 
         return clean_path, lower_path
@@ -140,57 +181,41 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
 
-            clean_path, lower_path = self.print_request()
+            clean_path, lower_path = self.scan_request()
 
             # =====================================================
             # VER.PHP
             # =====================================================
             if "ver.php" in lower_path:
 
-    host = self.headers.get(
-        "Host",
-        "srv-mtei.onrender.com"
-    )
+                host = self.headers.get(
+                    "Host",
+                    "srv-mtei.onrender.com"
+                )
 
-    base = f"https://{host}/live/"
+                base = f"https://{host}/live/"
 
-    # FORMATO CSV ORIGINAL
-    response = (
-        f"{VERSION},"
-        f"{base},"
-        f"{base},"
-        f"{base}"
-    )
+                # FORMATO CSV ORIGINAL
+                response = (
+                    f"{VERSION},"
+                    f"{base},"
+                    f"{base},"
+                    f"{base}"
+                )
 
-    self.log("VER RESPONSE:")
-    self.log(repr(response))
+                self.log("VER.PHP RESPONSE:")
+                self.log(repr(response))
 
-    encoded = response.encode("utf-8")
+                self.send_text(response)
 
-    self.send_response(200)
-
-    self.send_header(
-        "Content-Type",
-        "text/plain"
-    )
-
-    self.send_header(
-        "Content-Length",
-        str(len(encoded))
-    )
-
-    self.end_headers()
-
-    self.wfile.write(encoded)
-
-    return
+                return
 
             # =====================================================
             # VERSIONINFO
             # =====================================================
             if "versioninfo" in lower_path:
 
-                self.log("VERSIONINFO REQUEST")
+                self.log("VERSIONINFO DETECTED")
 
                 self.send_text(
                     VERSION + "\r\n"
@@ -203,7 +228,7 @@ class Handler(BaseHTTPRequestHandler):
             # =====================================================
             if "fileinfo" in lower_path:
 
-                self.log("FILEINFO REQUEST")
+                self.log("FILEINFO DETECTED")
 
                 self.send_text(
                     FILEINFO_DATA + "\r\n"
@@ -221,7 +246,7 @@ class Handler(BaseHTTPRequestHandler):
                     ""
                 )
 
-                self.log("LIVE ASSET REQUEST:")
+                self.log("LIVE ASSET:")
                 self.log(asset_path)
 
                 # IGNORA PHP
@@ -232,15 +257,19 @@ class Handler(BaseHTTPRequestHandler):
                         + asset_path
                     )
 
-                    self.log("REDIRECT CDN:")
+                    self.log("CDN REDIRECT:")
                     self.log(cdn_url)
 
-                    # 301 MELHOR PRA UNITY ANTIGA
                     self.send_response(301)
 
                     self.send_header(
                         "Location",
                         cdn_url
+                    )
+
+                    self.send_header(
+                        "Connection",
+                        "close"
                     )
 
                     self.end_headers()
@@ -254,24 +283,25 @@ class Handler(BaseHTTPRequestHandler):
 
                 self.send_json({
                     "server": "online",
-                    "version": VERSION
+                    "version": VERSION,
+                    "scanner": True
                 })
 
                 return
 
             # =====================================================
-            # UNKNOWN
+            # UNKNOWN REQUEST
             # =====================================================
-            self.log("UNKNOWN REQUEST")
+            self.log("UNKNOWN REQUEST DETECTED")
 
             self.send_text("OK")
 
         except Exception as e:
 
             self.log("\n")
-            self.log("=" * 60)
-            self.log("ERROR")
-            self.log("=" * 60)
+            self.log("=" * 70)
+            self.log("SERVER ERROR")
+            self.log("=" * 70)
 
             self.log(traceback.format_exc())
 
@@ -299,10 +329,12 @@ class Handler(BaseHTTPRequestHandler):
                     content_length
                 )
 
-            clean_path, lower_path = self.print_request(body)
+            clean_path, lower_path = self.scan_request(body)
 
+            # RESPOSTA GENÉRICA
             self.send_json({
                 "status": "ok",
+                "captured": True,
                 "path": clean_path
             })
 
@@ -317,6 +349,8 @@ class Handler(BaseHTTPRequestHandler):
     # HEAD
     def do_HEAD(self):
 
+        self.log("HEAD REQUEST:", self.path)
+
         self.send_response(200)
 
         self.send_header(
@@ -324,16 +358,25 @@ class Handler(BaseHTTPRequestHandler):
             "text/plain"
         )
 
+        self.send_header(
+            "Connection",
+            "close"
+        )
+
         self.end_headers()
 
+
+# SOCKET OPTIONS
+ThreadingHTTPServer.allow_reuse_address = True
 
 server = ThreadingHTTPServer(
     ("0.0.0.0", PORT),
     Handler
 )
 
-print("=" * 60, flush=True)
-print(f"UNITY SCANNER SERVER RUNNING PORT {PORT}", flush=True)
-print("=" * 60, flush=True)
+print("=" * 70, flush=True)
+print("UNITY ADVANCED SCANNER STARTED", flush=True)
+print("PORT:", PORT, flush=True)
+print("=" * 70, flush=True)
 
 server.serve_forever()
