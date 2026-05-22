@@ -147,22 +147,43 @@ class Handler(BaseHTTPRequestHandler):
             # =====================================================
             if "ver.php" in lower_path:
 
-                # IMPORTANTE:
-                # UNITY ANTIGA USA CRLF (\r\n)
+    host = self.headers.get(
+        "Host",
+        "srv-mtei.onrender.com"
+    )
 
-                response = (
-                    f"{VERSION}\r\n"
-                    f"/live/Versioninfo.txt\r\n"
-                    f"/live/fileinfo.txt\r\n"
-                    f"/live/\r\n"
-                )
+    base = f"https://{host}/live/"
 
-                self.log("VER RESPONSE:")
-                self.log(repr(response))
+    # FORMATO CSV ORIGINAL
+    response = (
+        f"{VERSION},"
+        f"{base},"
+        f"{base},"
+        f"{base}"
+    )
 
-                self.send_text(response)
+    self.log("VER RESPONSE:")
+    self.log(repr(response))
 
-                return
+    encoded = response.encode("utf-8")
+
+    self.send_response(200)
+
+    self.send_header(
+        "Content-Type",
+        "text/plain"
+    )
+
+    self.send_header(
+        "Content-Length",
+        str(len(encoded))
+    )
+
+    self.end_headers()
+
+    self.wfile.write(encoded)
+
+    return
 
             # =====================================================
             # VERSIONINFO
