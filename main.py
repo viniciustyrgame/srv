@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, request, jsonify
+from flask import Flask, send_from_directory, request, jsonify, Response
 import os
 
 app = Flask(__name__)
@@ -16,7 +16,7 @@ def index():
 def ver_php():
     """
     Simula o endpoint de verificação de versão.
-    Retorna um JSON com a versão e uma URL de atualização, como é comum em jogos Unity.
+    Permite diferentes formatos de resposta para compatibilidade com o jogo.
     """
     try:
         current_version = "1.17.1"
@@ -24,14 +24,29 @@ def ver_php():
             with open("assets/android/versioninfo", "r") as f:
                 current_version = f.read().strip()
         
-        # Simula uma resposta de servidor de atualização
-        response_data = {
-            "version": current_version,
-            "update_url": f"https://{request.host}/live/android/", # Usa o host atual para a URL de atualização
-            "force_update": False,
-            "message": "No new update available."
-        }
-        return jsonify(response_data)
+        # Verifica o parâmetro 'format' na query string
+        response_format = request.args.get('format', 'text') # Default para texto puro
+
+        if response_format == 'json':
+            # Resposta JSON mais completa, como antes
+            response_data = {
+                "version": current_version,
+                "update_url": f"https://{request.host}/live/android/",
+                "force_update": False,
+                "message": "No new update available."
+            }
+            return jsonify(response_data)
+        elif response_format == 'simple_json':
+            # Resposta JSON simplificada
+            response_data = {
+                "version": current_version,
+                "update": "false"
+            }
+            return jsonify(response_data)
+        else:
+            # Default: Retorna apenas a string da versão (texto puro)
+            return Response(current_version, mimetype='text/plain')
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
