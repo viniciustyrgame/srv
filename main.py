@@ -5,34 +5,15 @@ import traceback
 
 PORT = int(os.environ.get("PORT", 10000))
 
+# O Hash que você encontrou no metadata
 LIVE_HASH = "1000678a9449649a1748f16cc0b922eee9c83cea4f3ac6f5981211536ad9fa0db941332ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3"
 
-TARGET_PATH = f"/live/{LIVE_HASH}"
-
-FILEINFO_DATA = """gameassetbundles,mzZtylZ1fawV5N8D8XikRyF+5mY=,12060,0
-main/gameentry,DZlCrLRuzwyuNzUZrh+p0QxJCcI=,2018,0
-localization/loc,gWXz0dDNM8MJyFcAFhzbqWWqvrY=,632921,0
-ingame/avatarmanager,Tjb+QEzOiGwy+DBpxlLrVBZRphA=,1915,0
-config/resconf,ysnx0NubzKPaLVGszrP45y9WQH0=,34896,0
-avatar/assetindexer,IbV74Hqrb07rdlrKYQx6JZIhZ5M=,74343,0
-avatar/uma_dcs,BSJQtQt6qEeFdLv8gsrVtPDQubo=,14523,0"""
-
 VERSION = "1.17.1"
-
 
 class Handler(BaseHTTPRequestHandler):
 
     def write_log(self):
-        print("\n========== REQUEST ==========")
-        print("IP:", self.client_address[0])
-        print("METHOD:", self.command)
-        print("PATH:", self.path)
-
-        print("\n--- HEADERS ---")
-        for key, value in self.headers.items():
-            print(f"{key}: {value}")
-
-        print("=============================\n")
+        print(f"\n[REQUEST] {self.command} {self.path}")
 
     def send_text(self, text, status=200):
         self.send_response(status)
@@ -49,92 +30,47 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
             self.write_log()
+            path = self.path
+            
+            # 1. Resposta para ver.php (O mais importante para o login)
+            if "ver.php" in path:
+                host = self.headers.get('Host', 'srv-mtei.onrender.com')
+                # O formato esperado pela Garena: Versão, CDN1, CDN2, CDN3
+                # Colocamos a sua URL do Render como CDN para o jogo continuar pedindo arquivos aqui
+                my_url = f"https://{host}/live/"
+                response = f"{VERSION},{my_url},{my_url},{my_url}"
+                return self.send_text(response)
 
-            path_lower = self.path.lower()
+            # 2. Resposta para versioninfo
+            if "versioninfo" in path:
+                return self.send_text(VERSION)
 
-            # LIVE HASH
-            if self.path == TARGET_PATH:
+            # 3. Redirecionamento de Assets (Se não for ver.php ou versioninfo)
+            # Se o jogo pedir um arquivo (ex: .unity3d), mandamos para a CDN oficial
+            if "/live/" in path:
+                filename = path.split('/')[-1]
+                if filename and not filename.endswith('.php'):
+                    self.send_response(302)
+                    self.send_header("Location", f"https://freefiremobile-a.akamaihd.net/live/{filename}")
+                    self.end_headers()
+                    return
 
-                self.send_json({
-                    "status": "ok",
-                    "version": VERSION,
-                    "message": "live endpoint working"
-                })
+            # 4. Root / Status
+            if path == "/":
+                return self.send_json({"status": "online", "server": "Luna Private", "version": VERSION})
 
-            # VERSIONINFO
-            elif "versioninfo" in path_lower:
-
-                self.send_text(VERSION)
-
-            # FILEINFO
-            elif "fileinfo" in path_lower:
-
-                self.send_text(FILEINFO_DATA)
-
-            # AVATAR
-            elif "/avatar/" in path_lower:
-
-                self.send_text("avatar ok")
-
-            # ROOT
-            elif self.path == "/":
-
-                self.send_json({
-                    "server": "online",
-                    "version": VERSION
-                })
-
-            # UNKNOWN
-            else:
-
-                self.send_json({
-                    "unknown_path": self.path
-                }, 404)
+            # Caso contrário, 404
+            self.send_json({"path": path, "error": "not_found"}, 404)
 
         except Exception as e:
             print(traceback.format_exc())
-
-            self.send_json({
-                "error": str(e)
-            }, 500)
+            self.send_json({"error": str(e)}, 500)
 
     def do_POST(self):
-        try:
-            self.write_log()
+        # Para rotas de login/auth se necessário no futuro
+        self.write_log()
+        self.send_json({"status": "ok", "message": "POST received"})
 
-            content_length = int(
-                self.headers.get("Content-Length", 0)
-            )
-
-            body = b""
-
-            if content_length > 0:
-                body = self.rfile.read(content_length)
-
-            print("\n--- BODY ---")
-
-            try:
-                print(body.decode("utf-8"))
-            except:
-                print(body)
-
-            self.send_json({
-                "status": "post_received"
-            })
-
-        except Exception as e:
-            print(traceback.format_exc())
-
-            self.send_json({
-                "error": str(e)
-            }, 500)
-
-
-server = ThreadingHTTPServer(
-    ("0.0.0.0", PORT),
-    Handler
-)
-
-print(f"SERVER RUNNING PORT {PORT}")
-
+server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+print(f"SERVER RUNNING ON PORT {PORT}")
 server.serve_forever()
