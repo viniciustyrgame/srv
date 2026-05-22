@@ -1,22 +1,59 @@
-from flask import Flask, send_from_directory, request, jsonify, Response
+from flask import Flask, send_from_directory, request, jsonify, Response, render_template_string
 import os
 import logging
 
 app = Flask(__name__)
 
-# Configurações para o Render: Porta dinâmica via variável de ambiente
 PORT = int(os.environ.get("PORT", 5000))
 
-# Configurar logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Base URL identificada na metadata: https://versionescommons.luna-corp.online/live/
-# Estrutura de arquivos: assets/android/
+# Variável global para controlar o formato da resposta do ver.php
+# Pode ser 'text', 'json', 'pipe_separated'
+response_mode = 'pipe_separated' # Default para o formato mais provável para Unity 5.6.3f1
 
 @app.route("/")
 def index():
     logging.info(f"Requisição HOME: {request.url}")
-    return "Mini Servidor de Assets IL2CPP (Auto-Scan) rodando!"
+    global response_mode
+    # Painel de controle simples para alternar o modo de resposta
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><title>IL2CPP Mini Server Control</title></head>
+    <body>
+        <h1>IL2CPP Mini Server Control Panel</h1>
+        <p>Current ver.php Response Mode: <strong>{response_mode}</strong></p>
+        <form action="/set_response_mode" method="post">
+            <label for="mode">Select ver.php Response Mode:</label>
+            <select name="mode" id="mode">
+                <option value="text" {'selected' if response_mode == 'text' else ''}>Plain Text (e.g., 1.17.1)</option>
+                <option value="json" {'selected' if response_mode == 'json' else ''}>Full JSON</option>
+                <option value="simple_json" {'selected' if response_mode == 'simple_json' else ''}>Simple JSON (version, update)</option>
+                <option value="pipe_separated" {'selected' if response_mode == 'pipe_separated' else ''}>Pipe Separated (e.g., 1.17.1|false|url)</option>
+            </select>
+            <input type="submit" value="Set Mode">
+        </form>
+        <h2>Endpoints:</h2>
+        <ul>
+            <li><code>/live/ver.php</code></li>
+            <li><code>/live/android/fileinfo</code></li>
+            <li><code>/live/android/versioninfo</code></li>
+        </ul>
+        <p>Check Render logs for detailed request information.</p>
+    </body>
+    </html>
+    """
+    return render_template_string(html_content)
+
+@app.route("/set_response_mode", methods=["POST"])
+def set_response_mode():
+    global response_mode
+    new_mode = request.form.get('mode')
+    if new_mode in ['text', 'json', 'simple_json', 'pipe_separated']:
+        response_mode = new_mode
+        logging.info(f"Modo de resposta do ver.php alterado para: {response_mode}")
+    return index()
 
 @app.route("/live/ver.php", methods=["GET", "POST"])
 def ver_php():
@@ -40,20 +77,36 @@ def ver_php():
     else:
         reported_version = current_version
 
-    # Resposta padrão: JSON estruturado (mais comum para Unity)
-    response_data = {
-        "version": reported_version,
-        "update_url": f"https://{request.host}/live/android/",
-        "force_update": False, # Pode ser True se reported_version > current_version
-        "message": "No new update available." if reported_version == current_version else "New update available."
-    }
-    
-    # Se a versão reportada for maior que a atual, sugerir force_update
-    if reported_version > current_version:
-        response_data["force_update"] = True
-
-    logging.info(f"Respondendo /live/ver.php com JSON: {response_data}")
-    return jsonify(response_data)
+    global response_mode
+    if response_mode == 'json':
+        response_data = {
+            "version": reported_version,
+            "update_url": f"https://{request.host}/live/android/",
+            "force_update": False, 
+            "message": "No new update available." if reported_version == current_version else "New update available."
+        }
+        if reported_version > current_version:
+            response_data["force_update"] = True
+        logging.info(f"Respondendo /live/ver.php com JSON completo: {response_data}")
+        return jsonify(response_data)
+    elif response_mode == 'simple_json':
+        response_data = {
+            "version": reported_version,
+            "update": "false" if reported_version == current_version else "true"
+        }
+        logging.info(f"Respondendo /live/ver.php com JSON simplificado: {response_data}")
+        return jsonify(response_data)
+    elif response_mode == 'pipe_separated':
+        # Formato comum em Unity mais antigos: version|update_needed|update_url
+        update_needed = "false"
+        if reported_version > current_version:
+            update_needed = "true"
+        response_string = f"{reported_version}|{update_needed}|https://{request.host}/live/android/"
+        logging.info(f"Respondendo /live/ver.php com Pipe Separated: {response_string}")
+        return Response(response_string, mimetype='text/plain')
+    else: # 'text' ou qualquer outro default
+        logging.info(f"Respondendo /live/ver.php com texto puro: {reported_version}")
+        return Response(reported_version, mimetype='text/plain')
 
 @app.route("/live/android/<path:filename>", methods=["GET", "POST"])
 def serve_android_assets(filename):
