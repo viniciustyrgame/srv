@@ -35,6 +35,12 @@ def add_log(text):
 # HOME PAGE
 # =========================================
 
+@app.after_request
+def fix_headers(response):
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["Accept-Ranges"] = "bytes"
+    return response
+    
 @app.route("/")
 def home():
     html_logs = "<br>".join(logs)
@@ -180,19 +186,17 @@ def ver_php():
 
 @app.route("/live/<path:filename>")
 def live_files(filename):
+    path = os.path.join("assets/android/live", filename)
 
-    full_path = os.path.join(BASE_DIR, "live", filename)
+    if not os.path.exists(path):
+        return "NOT FOUND", 404
 
-    add_log("")
-    add_log("LIVE FILE REQUEST")
-    add_log(f"FILE: {filename}")
-
-    if os.path.exists(full_path):
-        add_log("STATUS: FOUND")
-        return send_from_directory(
-            os.path.join(BASE_DIR, "live"),
-            filename
-        )
+    return send_from_directory(
+        "assets/android/live",
+        filename,
+        as_attachment=False,
+        conditional=True
+    )
 
     add_log("STATUS: NOT FOUND")
     return "FILE NOT FOUND", 404
