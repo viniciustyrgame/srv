@@ -193,7 +193,8 @@ class Handler(BaseHTTPRequestHandler):
                     "srv-mtei.onrender.com"
                 )
 
-                base = f"https://{host}/live/"
+                LIVE_HASH = "1000678a9449649a1748f16cc0b922eee9c83cea4f3ac6f5981211536ad9fa0db941332ee44819e9b4598845141067b281621874d0d5d7af9d8f7e00c1e54715b7d1e3"
+                base = f"https://{host}/live/{LIVE_HASH}"
 
                 # FORMATO CSV ORIGINAL
                 response = (
