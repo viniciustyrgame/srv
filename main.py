@@ -2,6 +2,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 import traceback
+import re
 
 PORT = int(os.environ.get("PORT", 10000))
 VERSION = "1.17.1"
@@ -9,18 +10,21 @@ VERSION = "1.17.1"
 class Handler(BaseHTTPRequestHandler):
 
     def do_HEAD(self):
-        # O Render usa HEAD para o Health Check. Precisamos responder 200 OK.
         self.send_response(200)
         self.send_header("Content-Type", "text/plain")
         self.end_headers()
 
     def do_GET(self):
         try:
-            path = self.path
-            
+            # LIMPEZA: Remove barras duplicadas ou extras no início do caminho
+            # Ex: /////////live/ver.php -> /live/ver.php
+            clean_path = "/" + re.sub(r'/+', '/', self.path).lstrip('/')
+            print(f"[CLEAN PATH] {clean_path}")
+
             # 1. Resposta para ver.php
-            if "ver.php" in path:
+            if "ver.php" in clean_path:
                 host = self.headers.get('Host', 'srv-mtei.onrender.com')
+                # Retornamos a URL LIMPA para o jogo não carregar as barras extras nas próximas chamadas
                 my_url = f"https://{host}/live/"
                 response = f"{VERSION},{my_url},{my_url},{my_url}"
                 self.send_response(200)
@@ -30,7 +34,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
             # 2. Resposta para versioninfo
-            if "versioninfo" in path:
+            if "versioninfo" in clean_path:
                 self.send_response(200)
                 self.send_header("Content-Type", "text/plain")
                 self.end_headers()
@@ -38,8 +42,12 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
             # 3. Redirecionamento de Assets
-            if "/live/" in path:
-                filename = path.split('/')[-1]
+            if "/live/" in clean_path:
+                filename = clean_path.split('/')[-1]
+                # Se houver query params (?), pegamos só o nome do arquivo
+                if "?" in filename:
+                    filename = filename.split('?')[0]
+                
                 if filename and not filename.endswith('.php'):
                     self.send_response(302)
                     self.send_header("Location", f"https://freefiremobile-a.akamaihd.net/live/{filename}")
@@ -47,14 +55,13 @@ class Handler(BaseHTTPRequestHandler):
                     return
 
             # 4. Root / Status
-            if path == "/":
+            if clean_path == "/":
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"status": "online", "version": VERSION}).encode("utf-8"))
                 return
 
-            # 404 para o resto
             self.send_response(404)
             self.end_headers()
 
