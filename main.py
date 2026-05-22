@@ -1,79 +1,57 @@
-from flask import Flask, request, Response, send_from_directory
-import os
+from flask import Flask, request, send_from_directory, Response
 from datetime import datetime
+import os
 
 app = Flask(__name__)
 
-PORT = int(os.environ.get("PORT", 5000))
-
-# =========================
+# =========================================
 # CONFIG
-# =========================
+# =========================================
 
-CURRENT_VERSION = "9999999999"
+BASE_DIR = "assets/android"
 
-LOGS = []
+SERVER_HOST = "https://srv-mtei.onrender.com"
+SERVER_VERSION = "9999999999"
 
-# =========================
+logs = []
+
+
+# =========================================
 # LOG SYSTEM
-# =========================
+# =========================================
 
 def add_log(text):
     now = datetime.now().strftime("%H:%M:%S")
     line = f"[{now}] {text}"
     print(line)
-    LOGS.insert(0, line)
 
-    # Limite de logs
-    if len(LOGS) > 500:
-        LOGS.pop()
+    logs.insert(0, line)
+
+    if len(logs) > 500:
+        logs.pop()
 
 
-# =========================
-# CREATE FILES
-# =========================
-
-os.makedirs("assets/android", exist_ok=True)
-
-if not os.path.exists("assets/android/Versioninfo.txt"):
-    with open("assets/android/Versioninfo.txt", "w") as f:
-        f.write(CURRENT_VERSION)
-
-if not os.path.exists("assets/android/Fileinfo.txt"):
-    with open("assets/android/Fileinfo.txt", "w") as f:
-        f.write(
-
-            "gameassetbundles,mzZtylZ1fawV5N8D8XikRyF+5mY=,12060,0\n"
-            "main/gameentry,DZlCrLRuzwyuNzUZrh+p0QxJCcI=,2018,0\n"
-            "localization/loc,gWXz0dDNM8MJyFcAFhzbqWWqvrY=,632921,0\n"
-            "ingame/avatarmanager,Tjb+QEzOiGwy+DBpxlLrVBZRphA=,1915,0\n"
-            "config/resconf,ysnx0NubzKPaLVGszrP45y9WQH0=,34896,0\n"
-            "avatar/assetindexer,IbV74Hqrb07rdlrKYQx6JZIhZ5M=,74343,0\n"
-            "avatar/uma_dcs,BSJQtQt6qEeFdLv8gsrVtPDQubo=,14523,0\n"
-        )
-
-# =========================
-# HOME
-# =========================
+# =========================================
+# HOME PAGE
+# =========================================
 
 @app.route("/")
 def home():
-
-    logs_html = "<br>".join(LOGS)
+    html_logs = "<br>".join(logs)
 
     return f"""
     <html>
     <head>
         <title>UNITY LIVE LOGS</title>
 
-        <meta http-equiv="refresh" content="2">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
 
         <style>
             body {{
                 background: #0d1117;
                 color: #00ff88;
                 font-family: monospace;
-                padding: 20px;
+                padding: 15px;
             }}
 
             h1 {{
@@ -84,32 +62,33 @@ def home():
                 background: #161b22;
                 border-radius: 10px;
                 padding: 15px;
-                margin-top: 20px;
-                border: 1px solid #30363d;
+                margin-bottom: 20px;
             }}
 
-            .online {{
-                color: #00ff88;
+            .log {{
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                font-size: 14px;
             }}
         </style>
     </head>
 
     <body>
 
-        <h1>UNITY LIVE LOGS</h1>
-
         <div class="box">
-            <b class="online">SERVER ONLINE</b><br><br>
+            <h1>UNITY LIVE LOGS</h1>
 
-            HOST:<br>
-            https://{request.host}<br><br>
+            <b>SERVER ONLINE</b><br><br>
 
-            VERSION:<br>
-            {CURRENT_VERSION}
+            <b>HOST:</b><br>
+            {SERVER_HOST}<br><br>
+
+            <b>VERSION:</b><br>
+            {SERVER_VERSION}
         </div>
 
-        <div class="box">
-            {logs_html}
+        <div class="box log">
+            {html_logs}
         </div>
 
     </body>
@@ -117,62 +96,55 @@ def home():
     """
 
 
-# =========================
+# =========================================
 # FAVICON
-# =========================
+# =========================================
 
 @app.route("/favicon.ico")
 def favicon():
     add_log("FAVICON REQUEST")
-    return "", 204
+    return Response(status=204)
 
 
-# =========================
+# =========================================
 # VERSIONINFO
-# =========================
+# =========================================
 
 @app.route("/Versioninfo.txt")
 def versioninfo():
-
-    add_log("VERSIONINFO REQUEST")
-
-    return Response(
-        CURRENT_VERSION,
-        mimetype="text/plain"
-    )
+    add_log("Versioninfo.txt REQUEST")
+    return send_from_directory(BASE_DIR, "Versioninfo.txt")
 
 
-# =========================
+# =========================================
 # FILEINFO
-# =========================
+# =========================================
 
 @app.route("/Fileinfo.txt")
 def fileinfo():
-
-    add_log("FILEINFO REQUEST")
-
-    return send_from_directory(
-        "assets/android",
-        "Fileinfo.txt"
-    )
+    add_log("Fileinfo.txt REQUEST")
+    return send_from_directory(BASE_DIR, "Fileinfo.txt")
 
 
-# =========================
-# LIVE VER.PHP
-# =========================
+# =========================================
+# VER.PHP
+# =========================================
 
-@app.route("/live/ver.php", methods=["GET"])
+@app.route("/live/ver.php")
 def ver_php():
+
+    version = request.args.get("version", "unknown")
+    lang = request.args.get("lang", "unknown")
+    device = request.args.get("device", "unknown")
+    appstore = request.args.get("appstore", "unknown")
 
     add_log("")
     add_log("VER.PHP REQUEST")
     add_log("")
-
     add_log(f"TIME: {datetime.now().strftime('%H:%M:%S')}")
     add_log(f"METHOD: {request.method}")
     add_log("")
     add_log(f"RAW PATH: {request.full_path}")
-
     add_log("")
     add_log("HEADERS:")
 
@@ -181,75 +153,69 @@ def ver_php():
 
     add_log("")
     add_log("QUERY:")
-
-    for key, value in request.args.items():
-        add_log(f"{key}: {value}")
-
-    unity = request.headers.get("X-Unity-Version", "unknown")
-    ua = request.headers.get("User-Agent", "unknown")
-
     add_log("")
-    add_log(f"UNITY: {unity}")
+    add_log(f"version: {version}")
+    add_log(f"lang: {lang}")
+    add_log(f"device: {device}")
+    add_log(f"appstore: {appstore}")
     add_log("")
-    add_log(f"USER-AGENT: {ua}")
-
-    host = request.host_url.rstrip("/")
 
     response_text = (
-        f"{CURRENT_VERSION}\r\n"
-        f"{host}/Versioninfo.txt\r\n"
-        f"{host}/Fileinfo.txt\r\n"
-        f"{host}/live/\r\n"
+        f"{SERVER_VERSION}\r\n"
+        f"{SERVER_HOST}/Versioninfo.txt\r\n"
+        f"{SERVER_HOST}/Fileinfo.txt\r\n"
+        f"{SERVER_HOST}/live/\r\n"
     )
 
-    add_log("")
     add_log("VER RESPONSE:")
     add_log("")
     add_log(response_text)
 
-    return Response(
-        response_text,
-        mimetype="text/plain"
-    )
+    return Response(response_text, mimetype="text/plain")
 
 
-# =========================
+# =========================================
 # LIVE FILES
-# =========================
+# =========================================
 
 @app.route("/live/<path:filename>")
 def live_files(filename):
 
-    add_log(f"LIVE FILE REQUEST: {filename}")
+    full_path = os.path.join(BASE_DIR, "live", filename)
 
-    full_path = os.path.join("assets/android", filename)
+    add_log("")
+    add_log("LIVE FILE REQUEST")
+    add_log(f"FILE: {filename}")
 
     if os.path.exists(full_path):
-        return send_from_directory("assets/android", filename)
+        add_log("STATUS: FOUND")
+        return send_from_directory(
+            os.path.join(BASE_DIR, "live"),
+            filename
+        )
 
-    return "NOT FOUND", 404
+    add_log("STATUS: NOT FOUND")
+    return "FILE NOT FOUND", 404
 
 
-# =========================
-# CATCH ALL
-# =========================
+# =========================================
+# UNKNOWN ROUTES
+# =========================================
 
-@app.route("/<path:path>")
-def catch_all(path):
+@app.errorhandler(404)
+def not_found(e):
 
     add_log("")
-    add_log(f"UNKNOWN REQUEST: /{path}")
-    add_log("")
+    add_log("UNKNOWN REQUEST")
+    add_log(f"PATH: {request.path}")
+    add_log(f"METHOD: {request.method}")
 
-    return Response(
-        "OK",
-        mimetype="text/plain"
-    )
+    return "404", 404
 
 
-# =========================
+# =========================================
 # START
-# =========================
+# =========================================
 
 if __name__ == "__main__":
 
@@ -257,5 +223,5 @@ if __name__ == "__main__":
 
     app.run(
         host="0.0.0.0",
-        port=PORT
-        )
+        port=int(os.environ.get("PORT", 5000))
+    )
