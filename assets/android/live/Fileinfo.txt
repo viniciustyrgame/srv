@@ -1,7 +1,7 @@
-gameassetbundles/gameassetbundles,mzZtylZ1fawV5N8D8XikRyF%2B5mY%3D,12060,0
-gameassetbundles/main/gameentry,DZlCrLRuzwyuNzUZrh%2Bp0QxJCcI%3D,2018,0
-gameassetbundles/localization/loc,gWXz0dDNM8MJyFcAFhzbqWWqvrY%3D,632921,0
-gameassetbundles/ingame/avatarmanager,Tjb%2BQEzOiGwy%2BDBpxlLrVBZRphA%3D,1915,0
-gameassetbundles/config/resconf,ysnx0NubzKPaLVGszrP45y9WQH0%3D,34896,0
-gameassetbundles/avatar/assetindexer,IbV74Hqrb07rdlrKYQx6JZIhZ5M%3D,74343,0
-gameassetbundles/avatar/uma_dcs,BSJQtQt6qEeFdLv8gsrVtPDQubo%3D,14523,0
+live/gameassetbundles/gameassetbundles,mzZtylZ1fawV5N8D8XikRyF+5mY=,12060,0
+live/gameassetbundles/main/gameentry,DZlCrLRuzwyuNzUZrh+p0QxJCcI=,2018,0
+live/gameassetbundles/localization/loc,gWXz0dDNM8MJyFcAFhzbqWWqvrY=,632921,0
+live/gameassetbundles/ingame/avatarmanager,Tjb+QEzOiGwy+DBpxlLrVBZRphA=,1915,0
+live/gameassetbundles/config/resconf,ysnx0NubzKPaLVGszrP45y9WQH0=,34896,0
+live/gameassetbundles/avatar/assetindexer,IbV74Hqrb07rdlrKYQx6JZIhZ5M=,74343,0
+live/gameassetbundles/avatar/uma_dcs,BSJQtQt6qEeFdLv8gsrVtPDQubo=,14523,0
