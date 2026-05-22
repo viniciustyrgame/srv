@@ -42,8 +42,14 @@ if not os.path.exists("assets/android/Versioninfo.txt"):
 if not os.path.exists("assets/android/Fileinfo.txt"):
     with open("assets/android/Fileinfo.txt", "w") as f:
         f.write(
+
             "gameassetbundles,mzZtylZ1fawV5N8D8XikRyF+5mY=,12060,0\n"
             "main/gameentry,DZlCrLRuzwyuNzUZrh+p0QxJCcI=,2018,0\n"
+            "localization/loc,gWXz0dDNM8MJyFcAFhzbqWWqvrY=,632921,0\n"
+            "ingame/avatarmanager,Tjb+QEzOiGwy+DBpxlLrVBZRphA=,1915,0\n"
+            "config/resconf,ysnx0NubzKPaLVGszrP45y9WQH0=,34896,0\n"
+            "avatar/assetindexer,IbV74Hqrb07rdlrKYQx6JZIhZ5M=,74343,0\n"
+            "avatar/uma_dcs,BSJQtQt6qEeFdLv8gsrVtPDQubo=,14523,0\n"
         )
 
 # =========================
