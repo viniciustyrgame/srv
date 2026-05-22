@@ -5,7 +5,7 @@ import json
 import re
 import time
 
-PORT = int(os.environ.get("PORT", 10000"))
+PORT = int(os.environ.get("PORT", "10000"))
 
 VERSION = "1.17.1"
 
