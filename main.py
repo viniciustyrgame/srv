@@ -5,7 +5,7 @@ import json
 import re
 import time
 
-PORT = int(os.environ.get("PORT", 10000))
+PORT = int(os.environ.get("PORT", 10000"))
 
 VERSION = "1.17.1"
 
@@ -31,11 +31,18 @@ class Handler(BaseHTTPRequestHandler):
     # RESPONSE TEXT
     def send_text(self, text, status=200):
 
+        encoded = text.encode("utf-8")
+
         self.send_response(status)
 
         self.send_header(
             "Content-Type",
             "text/plain; charset=utf-8"
+        )
+
+        self.send_header(
+            "Content-Length",
+            str(len(encoded))
         )
 
         self.send_header(
@@ -45,12 +52,12 @@ class Handler(BaseHTTPRequestHandler):
 
         self.end_headers()
 
-        self.wfile.write(
-            text.encode("utf-8")
-        )
+        self.wfile.write(encoded)
 
     # RESPONSE JSON
     def send_json(self, data, status=200):
+
+        encoded = json.dumps(data).encode("utf-8")
 
         self.send_response(status)
 
@@ -59,11 +66,14 @@ class Handler(BaseHTTPRequestHandler):
             "application/json"
         )
 
+        self.send_header(
+            "Content-Length",
+            str(len(encoded))
+        )
+
         self.end_headers()
 
-        self.wfile.write(
-            json.dumps(data).encode("utf-8")
-        )
+        self.wfile.write(encoded)
 
     # LOGGER
     def print_request(self, body=None):
@@ -81,9 +91,10 @@ class Handler(BaseHTTPRequestHandler):
 
         self.log("RAW PATH:", self.path)
 
-        # CLEAN PATH
+        # REMOVE QUERY
         raw_path = self.path.split("?")[0]
 
+        # REMOVE //////
         clean_path = "/" + re.sub(
             r"/+",
             "/",
@@ -136,22 +147,18 @@ class Handler(BaseHTTPRequestHandler):
             # =====================================================
             if "ver.php" in lower_path:
 
-                host = self.headers.get(
-                    "Host",
-                    "srv-mtei.onrender.com"
-                )
-
-                base = f"https://{host}"
+                # IMPORTANTE:
+                # UNITY ANTIGA USA CRLF (\r\n)
 
                 response = (
-                    f"{VERSION}\n"
-                    f"{base}/Versioninfo.txt\n"
-                    f"{base}/fileinfo.txt\n"
-                    f"{base}/live/"
+                    f"{VERSION}\r\n"
+                    f"/live/Versioninfo.txt\r\n"
+                    f"/live/fileinfo.txt\r\n"
+                    f"/live/\r\n"
                 )
 
                 self.log("VER RESPONSE:")
-                self.log(response)
+                self.log(repr(response))
 
                 self.send_text(response)
 
@@ -164,7 +171,9 @@ class Handler(BaseHTTPRequestHandler):
 
                 self.log("VERSIONINFO REQUEST")
 
-                self.send_text(VERSION)
+                self.send_text(
+                    VERSION + "\r\n"
+                )
 
                 return
 
@@ -175,7 +184,9 @@ class Handler(BaseHTTPRequestHandler):
 
                 self.log("FILEINFO REQUEST")
 
-                self.send_text(FILEINFO_DATA)
+                self.send_text(
+                    FILEINFO_DATA + "\r\n"
+                )
 
                 return
 
@@ -192,7 +203,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.log("LIVE ASSET REQUEST:")
                 self.log(asset_path)
 
-                # REDIRECT CDN
+                # IGNORA PHP
                 if asset_path and not asset_path.endswith(".php"):
 
                     cdn_url = (
@@ -203,7 +214,8 @@ class Handler(BaseHTTPRequestHandler):
                     self.log("REDIRECT CDN:")
                     self.log(cdn_url)
 
-                    self.send_response(302)
+                    # 301 MELHOR PRA UNITY ANTIGA
+                    self.send_response(301)
 
                     self.send_header(
                         "Location",
@@ -242,9 +254,9 @@ class Handler(BaseHTTPRequestHandler):
 
             self.log(traceback.format_exc())
 
-            self.send_response(500)
-
-            self.end_headers()
+            self.send_json({
+                "error": str(e)
+            }, 500)
 
     # POST
     def do_POST(self):
@@ -268,7 +280,6 @@ class Handler(BaseHTTPRequestHandler):
 
             clean_path, lower_path = self.print_request(body)
 
-            # RESPONSE DEFAULT
             self.send_json({
                 "status": "ok",
                 "path": clean_path
