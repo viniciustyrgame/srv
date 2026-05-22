@@ -1,6 +1,7 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
+import traceback
 
 PORT = int(os.environ.get("PORT", 10000))
 
@@ -16,9 +17,12 @@ config/resconf,ysnx0NubzKPaLVGszrP45y9WQH0=,34896,0
 avatar/assetindexer,IbV74Hqrb07rdlrKYQx6JZIhZ5M=,74343,0
 avatar/uma_dcs,BSJQtQt6qEeFdLv8gsrVtPDQubo=,14523,0"""
 
+VERSION = "1.17.1"
+
+
 class Handler(BaseHTTPRequestHandler):
 
-    def log_request(self):
+    def write_log(self):
         print("\n========== REQUEST ==========")
         print("IP:", self.client_address[0])
         print("METHOD:", self.command)
@@ -30,74 +34,106 @@ class Handler(BaseHTTPRequestHandler):
 
         print("=============================\n")
 
-    def send_text(self, text):
-        self.send_response(200)
-        self.send_header("Content-Type", "text/plain")
+    def send_text(self, text, status=200):
+        self.send_response(status)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.end_headers()
-        self.wfile.write(text.encode())
+        self.wfile.write(text.encode("utf-8"))
 
-    def send_json(self, data):
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
+    def send_json(self, data, status=200):
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
         self.end_headers()
-        self.wfile.write(json.dumps(data).encode())
+        self.wfile.write(json.dumps(data).encode("utf-8"))
 
     def do_GET(self):
-        self.log_request()
+        try:
+            self.write_log()
 
-        # LIVE HASH
-        if self.path == TARGET_PATH:
+            path_lower = self.path.lower()
+
+            # LIVE HASH
+            if self.path == TARGET_PATH:
+
+                self.send_json({
+                    "status": "ok",
+                    "version": VERSION,
+                    "message": "live endpoint working"
+                })
+
+            # VERSIONINFO
+            elif "versioninfo" in path_lower:
+
+                self.send_text(VERSION)
+
+            # FILEINFO
+            elif "fileinfo" in path_lower:
+
+                self.send_text(FILEINFO_DATA)
+
+            # AVATAR
+            elif "/avatar/" in path_lower:
+
+                self.send_text("avatar ok")
+
+            # ROOT
+            elif self.path == "/":
+
+                self.send_json({
+                    "server": "online",
+                    "version": VERSION
+                })
+
+            # UNKNOWN
+            else:
+
+                self.send_json({
+                    "unknown_path": self.path
+                }, 404)
+
+        except Exception as e:
+            print(traceback.format_exc())
 
             self.send_json({
-                "status": "ok",
-                "version": "1.17.1",
-                "next": "/Versioninfo"
-            })
-
-        # VERSIONINFO
-        elif "Versioninfo" in self.path:
-
-            self.send_text("1.17.1")
-
-        # FILEINFO
-        elif "fileinfo" in self.path:
-
-            self.send_text(FILEINFO_DATA)
-
-        # AVATAR TEST
-        elif "/Avatar/" in self.path:
-
-            self.send_text("avatar ok")
-
-        # DEFAULT
-        else:
-
-            self.send_json({
-                "unknown_path": self.path
-            })
+                "error": str(e)
+            }, 500)
 
     def do_POST(self):
-        self.log_request()
-
-        content_length = self.headers.get('Content-Length')
-
-        body = b''
-
-        if content_length:
-            body = self.rfile.read(int(content_length))
-
-        print("\n--- BODY ---")
-
         try:
-            print(body.decode())
-        except:
-            print(body)
+            self.write_log()
 
-        self.send_json({
-            "status": "post_received"
-        })
+            content_length = int(
+                self.headers.get("Content-Length", 0)
+            )
 
-server = HTTPServer(("0.0.0.0", PORT), Handler)
+            body = b""
+
+            if content_length > 0:
+                body = self.rfile.read(content_length)
+
+            print("\n--- BODY ---")
+
+            try:
+                print(body.decode("utf-8"))
+            except:
+                print(body)
+
+            self.send_json({
+                "status": "post_received"
+            })
+
+        except Exception as e:
+            print(traceback.format_exc())
+
+            self.send_json({
+                "error": str(e)
+            }, 500)
+
+
+server = ThreadingHTTPServer(
+    ("0.0.0.0", PORT),
+    Handler
+)
 
 print(f"SERVER RUNNING PORT {PORT}")
 
