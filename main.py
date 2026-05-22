@@ -137,4 +137,46 @@ class Handler(BaseHTTPRequestHandler):
                 "status": "ok"
             }
 
-            self
+            self.send_response(200)
+
+            self.send_header(
+                "Content-Type",
+                "application/json"
+            )
+
+            self.end_headers()
+
+            self.wfile.write(
+                json.dumps(response).encode()
+            )
+
+        except Exception as e:
+
+            self.log(traceback.format_exc())
+
+            self.send_response(500)
+            self.end_headers()
+
+    # HEAD
+    def do_HEAD(self):
+
+        self.send_response(200)
+
+        self.send_header(
+            "Content-Type",
+            "text/plain"
+        )
+
+        self.end_headers()
+
+
+server = ThreadingHTTPServer(
+    ("0.0.0.0", PORT),
+    Handler
+)
+
+print("=" * 60, flush=True)
+print(f"SCANNER SERVER RUNNING PORT {PORT}", flush=True)
+print("=" * 60, flush=True)
+
+server.serve_forever()
